@@ -1,5 +1,5 @@
 // デバッグ用の設定
-const DEBUG = true; // デバッグモードの切り替え
+const DEBUG = false; // デバッグモードの切り替え
 const DEBUG_DATE = '2025-05-02'; // デバッグ用の日付
 const DEBUG_START_TIME = '16:50'; // デバッグ用の開始時刻
 
@@ -239,6 +239,20 @@ function processElements() {
             box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
             z-index: 1000;
           }
+          .hide-button {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+            cursor: pointer;
+            font-size: 12px;
+          }
+          .hide-button:hover {
+            background-color: #e0e0e0;
+          }
+          .work-time-meter-container.hidden {
+            display: none;
+          }
           .work-time-meter {
             width: 100%;
             height: 20px;
@@ -289,7 +303,8 @@ function processElements() {
             background-color: #f0f0f0;
             cursor: pointer;
           }
-          .display-mode-toggle button.active {
+          .display-mode-toggle button.active,
+          .display-mode-toggle button.hide-button.active {
             background-color: #4aa3de;
             color: white;
           }
@@ -338,16 +353,32 @@ function processElements() {
             font-size: 12px;
             white-space: nowrap;
           }
-          .work-time-meter-container.pie-mode {
+          .work-time-meter-container.pie-mode,
+          .work-time-meter-container .hide-button.active ~ .bar-chart-container {
             background: transparent !important;
             box-shadow: none !important;
             padding: 0 !important;
           }
-          .work-time-meter-container.pie-mode .bar-chart-container {
+          .work-time-meter-container.pie-mode .bar-chart-container,
+          .work-time-meter-container .hide-button.active ~ .bar-chart-container {
             display: none !important;
             height: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
+          }
+          .work-time-meter-container.hidden .bar-chart-container,
+          .work-time-meter-container.hidden .pie-chart-container,
+          .work-time-meter-container.hidden .scheduled-time-input,
+          .work-time-meter-container.hidden .work-time-info {
+            display: none !important;
+          }
+          .work-time-meter-container.hidden {
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 5px !important;
+          }
+          .work-time-meter-container.hidden .display-mode-toggle {
+            margin-bottom: 0;
           }
         `;
         document.head.appendChild(style);
@@ -359,6 +390,7 @@ function processElements() {
           <div class="display-mode-toggle">
             <button class="bar-mode active">バーグラフ</button>
             <button class="pie-mode">円グラフ</button>
+            <button class="hide-button">非表示</button>
           </div>
           <div class="bar-chart-container">
             <div class="work-time-meter">
@@ -405,6 +437,7 @@ function processElements() {
 
         // モード切り替え
         barModeButton.addEventListener('click', () => {
+          hideButton.classList.remove('active');
           barModeButton.classList.add('active');
           pieModeButton.classList.remove('active');
           // 一度両方非表示にしてから必要な方だけ表示
@@ -421,6 +454,7 @@ function processElements() {
           updateMeter();
         });
         pieModeButton.addEventListener('click', () => {
+          hideButton.classList.remove('active');
           pieModeButton.classList.add('active');
           barModeButton.classList.remove('active');
           // 一度両方非表示にしてから必要な方だけ表示
@@ -505,6 +539,33 @@ function processElements() {
           if (info) info.textContent = infoText;
           if (pieChartInfo) pieChartInfo.textContent = `${hours}時間${minutes}分`;
         }
+
+        // 非表示ボタンの機能を追加
+        const hideButton = meterContainer.querySelector('.hide-button');
+        hideButton.addEventListener('click', () => {
+          hideButton.classList.toggle('active');
+          barModeButton.classList.remove('active');
+          pieModeButton.classList.remove('active');
+          
+          // グラフコンテナの表示/非表示を切り替え
+          if (hideButton.classList.contains('active')) {
+            meterContainer.classList.add('pie-mode');
+            barChartContainer.style.display = 'none';
+            pieChartContainer.style.display = 'none';
+          } else {
+            meterContainer.classList.remove('pie-mode');
+            barChartContainer.style.display = 'block';
+            pieChartContainer.style.display = 'none';
+          }
+          
+          // インターフェースの表示/非表示を切り替え
+          if (hideButton.classList.contains('active')) {
+            barChartContainer.appendChild(scheduledInput);
+            barChartContainer.appendChild(info);
+          }
+          
+          updateMeter();
+        });
 
         // メーターをページに追加
         document.body.appendChild(meterContainer);
