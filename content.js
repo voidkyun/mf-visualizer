@@ -200,16 +200,21 @@ function processElements() {
             if (i === breakTimes.length - 1 && !end) {
               const [startHour, startMinute] = start.split(':').map(Number);
               const startTotalMinutes = startHour * 60 + startMinute;
-              breakTotalMinutes += endTotalMinutes - startTotalMinutes;
-              console.log('デバッグ: 休憩中 - 開始:', start, '終了:', endTime || currentTime);
+              const [currentHour, currentMinute] = currentTime.split(':').map(Number);
+              const currentTotalMinutes = currentHour * 60 + currentMinute;
+              breakTotalMinutes += currentTotalMinutes - startTotalMinutes;
             } else {
               const [startHour, startMinute] = start.split(':').map(Number);
               const [endHour, endMinute] = end.split(':').map(Number);
               const startTotalMinutes = startHour * 60 + startMinute;
               const endTotalMinutes = endHour * 60 + endMinute;
               breakTotalMinutes += endTotalMinutes - startTotalMinutes;
-              console.log('デバッグ: 休憩時間 - 開始:', start, '終了:', end);
             }
+          }
+          
+          // 8時間以上の勤務で休憩時間が1時間未満の場合、休憩時間を1時間に設定
+          if (scheduledWorkHours >= 8 && breakTotalMinutes < 60) {
+            breakTotalMinutes = 60;
           }
           
           // 実労働時間を計算（分）
@@ -535,7 +540,43 @@ function processElements() {
           }
           const hours = Math.floor(workMinutes / 60);
           const minutes = workMinutes % 60;
-          const infoText = `現在時刻: ${currentTime} | 実労働時間: ${hours}時間${minutes}分 | 予定: ${scheduledWorkHours}時間`;
+
+          // 退勤予定時刻の計算
+          const [shukkinHour, shukkinMinute] = shukkinTime.split(':').map(Number);
+          const shukkinTotalMinutes = shukkinHour * 60 + shukkinMinute;
+          
+          // 休憩時間の合計を計算
+          let breakTotalMinutes = 0;
+          for (let i = 0; i < breakTimes.length; i++) {
+            const [start, end] = breakTimes[i];
+            
+            // 最後の要素で休憩終了がない場合（休憩中）
+            if (i === breakTimes.length - 1 && !end) {
+              const [startHour, startMinute] = start.split(':').map(Number);
+              const startTotalMinutes = startHour * 60 + startMinute;
+              const [currentHour, currentMinute] = currentTime.split(':').map(Number);
+              const currentTotalMinutes = currentHour * 60 + currentMinute;
+              breakTotalMinutes += currentTotalMinutes - startTotalMinutes;
+            } else {
+              const [startHour, startMinute] = start.split(':').map(Number);
+              const [endHour, endMinute] = end.split(':').map(Number);
+              const startTotalMinutes = startHour * 60 + startMinute;
+              const endTotalMinutes = endHour * 60 + endMinute;
+              breakTotalMinutes += endTotalMinutes - startTotalMinutes;
+            }
+          }
+
+          // 8時間以上の勤務で休憩時間が1時間未満の場合、休憩時間を1時間に設定
+          if (scheduledWorkHours >= 8 && breakTotalMinutes < 60) {
+            breakTotalMinutes = 60;
+          }
+
+          const scheduledEndTotalMinutes = shukkinTotalMinutes + (scheduledWorkHours * 60) + breakTotalMinutes;
+          const scheduledEndHour = Math.floor(scheduledEndTotalMinutes / 60) % 24;
+          const scheduledEndMinute = scheduledEndTotalMinutes % 60;
+          const scheduledEndTime = `${scheduledEndHour.toString().padStart(2, '0')}:${scheduledEndMinute.toString().padStart(2, '0')}`;
+
+          const infoText = `現在時刻: ${currentTime} | 実労働時間: ${hours}時間${minutes}分 | 予定: ${scheduledWorkHours}時間 | 退勤予定: ${scheduledEndTime}`;
           if (info) info.textContent = infoText;
           if (pieChartInfo) pieChartInfo.textContent = `${hours}時間${minutes}分`;
         }
