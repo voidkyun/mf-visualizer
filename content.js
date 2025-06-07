@@ -7,7 +7,7 @@ const DEBUG_START_TIME = '16:50'; // デバッグ用の開始時刻
 let shukkinTime = null;
 let breakTimes = [];
 let pageLoadTime = null; // ページ読み込み時刻
-let scheduledWorkHours = 8; // デフォルトの予定労働時間（時間）
+let scheduledWorkHours = localStorage.getItem('scheduledWorkHours') ? parseFloat(localStorage.getItem('scheduledWorkHours')) : 8; // デフォルトの予定労働時間（時間）
 
 // 今日の日付を取得（yyyy年mm月dd日(w)形式）
 const today = DEBUG ? new Date(DEBUG_DATE) : new Date();
@@ -391,25 +391,48 @@ function processElements() {
         // メーター要素を作成
         const meterContainer = document.createElement('div');
         meterContainer.className = 'work-time-meter-container';
+        
+        // localStorageから表示モードを読み込む
+        const savedDisplayMode = localStorage.getItem('displayMode') || 'bar';
+        
         meterContainer.innerHTML = `
           <div class="display-mode-toggle">
-            <button class="bar-mode active">バーグラフ</button>
-            <button class="pie-mode">円グラフ</button>
+            <button class="bar-mode ${savedDisplayMode === 'bar' ? 'active' : ''}">バーグラフ</button>
+            <button class="pie-mode ${savedDisplayMode === 'pie' ? 'active' : ''}">円グラフ</button>
             <button class="hide-button">非表示</button>
           </div>
-          <div class="bar-chart-container">
+          <div class="bar-chart-container" style="display: ${savedDisplayMode === 'bar' ? 'block' : 'none'}">
             <div class="work-time-meter">
               <div class="work-time-progress" style="width: 0%"></div>
             </div>
           </div>
-          <div class="pie-chart-container" style="display: none;">
+          <div class="pie-chart-container" style="display: ${savedDisplayMode === 'pie' ? 'flex' : 'none'}">
             <div class="pie-chart">
               <div class="pie-chart-info"></div>
             </div>
             <div class="pie-side-interface"></div>
           </div>
         `;
+
+        // 初期状態が円グラフの場合、pie-modeクラスを追加
+        if (savedDisplayMode === 'pie') {
+          meterContainer.classList.add('pie-mode');
+        }
+
         document.body.appendChild(meterContainer);
+
+/*         // localStorageから非表示状態を読み込んで適用
+        const isHidden = localStorage.getItem('isHidden');
+        if (isHidden) {
+          hideButton.classList.add('active');
+          barModeButton.classList.remove('active');
+          pieModeButton.classList.remove('active');
+          meterContainer.classList.add('pie-mode');
+          barChartContainer.style.display = 'none';
+          pieChartContainer.style.display = 'none';
+          barChartContainer.appendChild(scheduledInput);
+          barChartContainer.appendChild(info);
+        } */
 
         // 予定労働時間入力・情報表示を1つだけ生成
         const scheduledInput = document.createElement('div');
@@ -436,9 +459,14 @@ function processElements() {
         const pieChartInfo = meterContainer.querySelector('.pie-chart-info');
         const pieSideInterface = meterContainer.querySelector('.pie-side-interface');
 
-        // 初期状態でbarChartContainerにappend
-        barChartContainer.appendChild(scheduledInput);
-        barChartContainer.appendChild(info);
+        // 初期状態の表示モードに応じてインターフェースを追加
+        if (savedDisplayMode === 'bar') {
+          barChartContainer.appendChild(scheduledInput);
+          barChartContainer.appendChild(info);
+        } else {
+          pieSideInterface.appendChild(scheduledInput);
+          pieSideInterface.appendChild(info);
+        }
 
         // モード切り替え
         barModeButton.addEventListener('click', () => {
@@ -456,6 +484,9 @@ function processElements() {
           // インターフェースを元に戻す
           barChartContainer.appendChild(scheduledInput);
           barChartContainer.appendChild(info);
+          // 表示モードを保存
+          localStorage.setItem('displayMode', 'bar');
+          localStorage.setItem('isHidden', false);
           updateMeter();
         });
         pieModeButton.addEventListener('click', () => {
@@ -473,6 +504,9 @@ function processElements() {
           // インターフェースを円グラフ横に移動
           pieSideInterface.appendChild(scheduledInput);
           pieSideInterface.appendChild(info);
+          // 表示モードを保存
+          localStorage.setItem('displayMode', 'pie');
+          localStorage.setItem('isHidden', false);
           updateMeter();
         });
 
@@ -481,6 +515,8 @@ function processElements() {
           const hours = parseInt(scheduledHoursInput.value) || 0;
           const minutes = parseInt(scheduledMinutesInput.value) || 0;
           scheduledWorkHours = hours + (minutes / 60);
+          // 予定労働時間を保存
+          localStorage.setItem('scheduledWorkHours', scheduledWorkHours.toString());
           updateMeter();
         }
         scheduledHoursInput.addEventListener('change', (e) => {
@@ -604,6 +640,9 @@ function processElements() {
             barChartContainer.appendChild(scheduledInput);
             barChartContainer.appendChild(info);
           }
+
+          // 非表示状態をlocalStorageに保存
+          localStorage.setItem('isHidden', true);
           
           updateMeter();
         });
