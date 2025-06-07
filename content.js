@@ -574,7 +574,13 @@ function processElements() {
           if (pieChart) {
             animatePieChart(progressPercentage);
           }
-          const hours = Math.floor(workMinutes / 60);
+          let hours;
+          if(workMinutes < 0) {
+            hours = Math.ceil(workMinutes / 60);
+          }
+          else {
+            hours = Math.floor(workMinutes / 60);
+          }
           const minutes = workMinutes % 60;
 
           // 退勤予定時刻の計算
