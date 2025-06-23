@@ -497,7 +497,7 @@
           console.log('ツールチップ要素のクラス名:', tooltip ? tooltip.className : 'null');
           
           // ツールチップ要素の存在確認テスト
-          if (tooltip) {
+          if (tooltip && DEBUG) {
             console.log('ツールチップ要素の親要素:', tooltip.parentElement);
             console.log('ツールチップ要素の位置:', tooltip.offsetLeft, tooltip.offsetTop);
             console.log('ツールチップ要素の表示状態:', tooltip.style.display);
