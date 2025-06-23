@@ -12,6 +12,7 @@
   // グローバル変数
   let shukkinTime = null;
   let breakTimes = [];
+  let taikinTime = null; // 退勤時刻を追加
   let pageLoadTime = null; // ページ読み込み時刻
   let scheduledWorkHours = localStorage.getItem('scheduledWorkHours') ? parseFloat(localStorage.getItem('scheduledWorkHours')) : 8; // デフォルトの予定労働時間（時間）
 
@@ -134,8 +135,9 @@
             // 退勤時間の要素を取得（退勤の要素の次のdiv要素）
             const timeDiv = taikinDiv.nextElementSibling;
             if (timeDiv && timeDiv.hasAttribute('data-v-16531082')) {
-              const taikinTime = timeDiv.textContent.trim();
-              console.log('退勤時間:', taikinTime);
+              endTime = timeDiv.textContent.trim();
+              taikinTime = endTime; // グローバル変数に保存
+              console.log('退勤時間:', endTime);
             } else {
               console.log('退勤時間の要素が見つかりません。');
             }
@@ -189,6 +191,7 @@
               const timeDiv = taikinDiv.nextElementSibling;
               if (timeDiv && timeDiv.hasAttribute('data-v-16531082')) {
                 endTime = timeDiv.textContent.trim();
+                taikinTime = endTime; // グローバル変数に保存
                 console.log('退勤時間:', endTime);
               }
             }
@@ -201,7 +204,6 @@
             let breakTotalMinutes = 0;
             for (let i = 0; i < breakTimes.length; i++) {
               const [start, end] = breakTimes[i];
-              
               // 最後の要素で休憩終了がない場合（休憩中）
               if (i === breakTimes.length - 1 && !end) {
                 const [startHour, startMinute] = start.split(':').map(Number);
@@ -218,11 +220,7 @@
               }
             }
             
-            // 8時間以上の勤務で休憩時間が1時間未満の場合、休憩時間を1時間に設定
-            if (scheduledWorkHours >= 8 && breakTotalMinutes < 60) {
-              breakTotalMinutes = 60;
-            }
-            
+            // 実労働時間の計算ではデフォルト休憩を加えない
             // 実労働時間を計算（分）
             const workMinutes = endTotalMinutes - shukkinTotalMinutes - breakTotalMinutes;
             
@@ -391,6 +389,30 @@
             .work-time-meter-container.hidden .display-mode-toggle {
               margin-bottom: 0;
             }
+            .tooltip {
+              position: fixed;
+              background-color: rgba(0, 0, 0, 0.8);
+              color: white;
+              padding: 8px 12px;
+              border-radius: 6px;
+              font-size: 12px;
+              white-space: nowrap;
+              pointer-events: none;
+              z-index: 10000;
+              opacity: 0;
+              transition: opacity 0.2s ease;
+              max-width: 200px;
+              word-wrap: break-word;
+            }
+            .tooltip.show {
+              opacity: 1;
+            }
+            .work-time-meter {
+              position: relative;
+            }
+            .pie-chart {
+              position: relative;
+            }
           `;
           document.head.appendChild(style);
 
@@ -418,6 +440,7 @@
               </div>
               <div class="pie-side-interface"></div>
             </div>
+            <div class="tooltip"></div>
           `;
 
           // 初期状態が円グラフの場合、pie-modeクラスを追加
@@ -464,6 +487,41 @@
           const pieChart = meterContainer.querySelector('.pie-chart');
           const pieChartInfo = meterContainer.querySelector('.pie-chart-info');
           const pieSideInterface = meterContainer.querySelector('.pie-side-interface');
+          const tooltip = meterContainer.querySelector('.tooltip');
+
+          console.log('ツールチップ要素:', tooltip);
+          console.log('プログレス要素:', progress);
+          console.log('円グラフ要素:', pieChart);
+          console.log('プログレス要素のクラス名:', progress ? progress.className : 'null');
+          console.log('円グラフ要素のクラス名:', pieChart ? pieChart.className : 'null');
+          console.log('ツールチップ要素のクラス名:', tooltip ? tooltip.className : 'null');
+          
+          // ツールチップ要素の存在確認テスト
+          if (tooltip) {
+            console.log('ツールチップ要素の親要素:', tooltip.parentElement);
+            console.log('ツールチップ要素の位置:', tooltip.offsetLeft, tooltip.offsetTop);
+            console.log('ツールチップ要素の表示状態:', tooltip.style.display);
+            console.log('ツールチップ要素の可視性:', tooltip.style.visibility);
+            console.log('ツールチップ要素の透明度:', tooltip.style.opacity);
+            
+            // テスト用にツールチップを強制表示
+            if (taikinTime) {
+              tooltip.textContent = '退勤済み（テスト）';
+            } else {
+              tooltip.textContent = '勤務中（テスト）';
+            }
+            tooltip.style.left = '100px';
+            tooltip.style.top = '100px';
+            tooltip.classList.add('show');
+            console.log('テストツールチップを表示しました');
+            console.log('退勤状況:', taikinTime ? '退勤済み' : '勤務中');
+            
+            // 3秒後に非表示
+            setTimeout(() => {
+              tooltip.classList.remove('show');
+              console.log('テストツールチップを非表示にしました');
+            }, 3000);
+          }
 
           // 初期状態の表示モードに応じてインターフェースを追加
           if (savedDisplayMode === 'bar') {
@@ -473,6 +531,135 @@
             pieSideInterface.appendChild(scheduledInput);
             pieSideInterface.appendChild(info);
           }
+
+          // ツールチップ機能
+          function showTooltip(event, remainingMinutes) {
+            console.log('showTooltip called:', remainingMinutes);
+            if (!tooltip) {
+              console.log('ツールチップ要素が見つかりません');
+              return;
+            }
+            
+            // 退勤済みかどうかをチェック
+            if (taikinTime) {
+              tooltip.textContent = '退勤済み';
+            } else if (remainingMinutes <= 0) {
+              tooltip.textContent = '退勤時刻です！';
+            } else {
+              const hours = Math.floor(remainingMinutes / 60);
+              const minutes = remainingMinutes % 60;
+              if (hours > 0) {
+                tooltip.textContent = `あと${hours}時間${minutes}分`;
+              } else {
+                tooltip.textContent = `あと${minutes}分`;
+              }
+            }
+            
+            // マウス位置を取得
+            const mouseX = event.clientX;
+            const mouseY = event.clientY;
+            
+            // ツールチップの位置を計算（画面内に収める）
+            const tooltipWidth = 150; // 推定幅
+            const tooltipHeight = 40; // 推定高さ
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            
+            let left = mouseX + 10;
+            let top = mouseY - 30;
+            
+            // 右端を超える場合は左側に表示
+            if (left + tooltipWidth > windowWidth) {
+              left = mouseX - tooltipWidth - 10;
+            }
+            
+            // 上端を超える場合は下側に表示
+            if (top < 0) {
+              top = mouseY + 10;
+            }
+            
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+            tooltip.classList.add('show');
+            
+            console.log('ツールチップを表示:', tooltip.textContent);
+            console.log('ツールチップ位置:', left, top);
+            console.log('マウス位置:', mouseX, mouseY);
+            console.log('ツールチップ要素のスタイル:', tooltip.style.cssText);
+            console.log('退勤時刻:', taikinTime);
+          }
+
+          function hideTooltip() {
+            if (tooltip) {
+              tooltip.classList.remove('show');
+            }
+          }
+
+          // バーグラフのホバーイベント
+          if (progress) {
+            console.log('バーグラフのホバーイベントを設定');
+            
+            // テスト用のクリックイベント
+            progress.addEventListener('click', () => {
+              console.log('プログレス要素がクリックされました！');
+            });
+            
+            progress.addEventListener('mouseenter', (event) => {
+              console.log('バーグラフにマウスエンター');
+              const { workMinutes, currentTime } = calculateWorkTime(shukkinTime, breakTimes);
+              const maxMinutes = scheduledWorkHours * 60;
+              const remainingMinutes = Math.max(0, maxMinutes - workMinutes);
+              showTooltip(event, remainingMinutes);
+            });
+            
+            progress.addEventListener('mouseleave', () => {
+              console.log('バーグラフからマウスリーブ');
+              hideTooltip();
+            });
+            progress.addEventListener('mousemove', (event) => {
+              const { workMinutes, currentTime } = calculateWorkTime(shukkinTime, breakTimes);
+              const maxMinutes = scheduledWorkHours * 60;
+              const remainingMinutes = Math.max(0, maxMinutes - workMinutes);
+              showTooltip(event, remainingMinutes);
+            });
+          } else {
+            console.log('プログレス要素が見つかりません');
+          }
+
+          // 円グラフのホバーイベント
+          if (pieChart) {
+            console.log('円グラフのホバーイベントを設定');
+            
+            // テスト用のクリックイベント
+            pieChart.addEventListener('click', () => {
+              console.log('円グラフ要素がクリックされました！');
+            });
+            
+            pieChart.addEventListener('mouseenter', (event) => {
+              console.log('円グラフにマウスエンター');
+              const { workMinutes, currentTime } = calculateWorkTime(shukkinTime, breakTimes);
+              const maxMinutes = scheduledWorkHours * 60;
+              const remainingMinutes = Math.max(0, maxMinutes - workMinutes);
+              showTooltip(event, remainingMinutes);
+            });
+            
+            pieChart.addEventListener('mouseleave', () => {
+              console.log('円グラフからマウスリーブ');
+              hideTooltip();
+            });
+            pieChart.addEventListener('mousemove', (event) => {
+              const { workMinutes, currentTime } = calculateWorkTime(shukkinTime, breakTimes);
+              const maxMinutes = scheduledWorkHours * 60;
+              const remainingMinutes = Math.max(0, maxMinutes - workMinutes);
+              showTooltip(event, remainingMinutes);
+            });
+          } else {
+            console.log('円グラフ要素が見つかりません');
+          }
+
+          console.log('イベントリスナー設定完了');
+          console.log('プログレス要素のイベントリスナー数:', progress ? progress.onmouseenter ? '設定済み' : '未設定' : '要素なし');
+          console.log('円グラフ要素のイベントリスナー数:', pieChart ? pieChart.onmouseenter ? '設定済み' : '未設定' : '要素なし');
 
           // モード切り替え
           barModeButton.addEventListener('click', () => {
@@ -590,36 +777,28 @@
             const minutes = workMinutes % 60;
 
             // 退勤予定時刻の計算
-            const [shukkinHour, shukkinMinute] = shukkinTime.split(':').map(Number);
-            const shukkinTotalMinutes = shukkinHour * 60 + shukkinMinute;
-            
-            // 休憩時間の合計を計算
-            let breakTotalMinutes = 0;
+            // 退勤予定時刻の計算では8時間以上の勤務で休憩時間が1時間未満の場合、休憩時間を1時間にする
+            let breakTotalMinutesForScheduled = 0;
             for (let i = 0; i < breakTimes.length; i++) {
               const [start, end] = breakTimes[i];
-              
-              // 最後の要素で休憩終了がない場合（休憩中）
               if (i === breakTimes.length - 1 && !end) {
                 const [startHour, startMinute] = start.split(':').map(Number);
                 const startTotalMinutes = startHour * 60 + startMinute;
                 const [currentHour, currentMinute] = currentTime.split(':').map(Number);
                 const currentTotalMinutes = currentHour * 60 + currentMinute;
-                breakTotalMinutes += currentTotalMinutes - startTotalMinutes;
+                breakTotalMinutesForScheduled += currentTotalMinutes - startTotalMinutes;
               } else {
                 const [startHour, startMinute] = start.split(':').map(Number);
                 const [endHour, endMinute] = end.split(':').map(Number);
                 const startTotalMinutes = startHour * 60 + startMinute;
                 const endTotalMinutes = endHour * 60 + endMinute;
-                breakTotalMinutes += endTotalMinutes - startTotalMinutes;
+                breakTotalMinutesForScheduled += endTotalMinutes - startTotalMinutes;
               }
             }
-
-            // 8時間以上の勤務で休憩時間が1時間未満の場合、休憩時間を1時間に設定
-            if (scheduledWorkHours >= 8 && breakTotalMinutes < 60) {
-              breakTotalMinutes = 60;
+            if (scheduledWorkHours >= 8 && breakTotalMinutesForScheduled < 60) {
+              breakTotalMinutesForScheduled = 60;
             }
-
-            const scheduledEndTotalMinutes = shukkinTotalMinutes + (scheduledWorkHours * 60) + breakTotalMinutes;
+            const scheduledEndTotalMinutes = shukkinTotalMinutes + (scheduledWorkHours * 60) + breakTotalMinutesForScheduled;
             const scheduledEndHour = Math.floor(scheduledEndTotalMinutes / 60) % 24;
             const scheduledEndMinute = scheduledEndTotalMinutes % 60;
             const scheduledEndTime = `${scheduledEndHour.toString().padStart(2, '0')}:${scheduledEndMinute.toString().padStart(2, '0')}`;
@@ -725,6 +904,25 @@
               }
             }
             console.log('休憩時間を再取得:', breakTimes);
+            
+            // 退勤時間を再取得
+            const taikinDiv = divElements.find(div => 
+              div.classList.contains('tw-mr-8') && 
+              div.classList.contains('tw-w-[72px]') && 
+              div.classList.contains('mobile:tw-w-auto') && 
+              div.textContent.trim() === '退勤'
+            );
+
+            if (taikinDiv) {
+              const timeDiv = taikinDiv.nextElementSibling;
+              if (timeDiv && timeDiv.hasAttribute('data-v-16531082')) {
+                taikinTime = timeDiv.textContent.trim();
+                console.log('退勤時間を再取得:', taikinTime);
+              }
+            } else {
+              taikinTime = null;
+              console.log('退勤の要素が見つかりません。');
+            }
           });
 
           // history-listの監視を開始
