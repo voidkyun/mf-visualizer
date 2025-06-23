@@ -204,6 +204,7 @@
             let breakTotalMinutes = 0;
             for (let i = 0; i < breakTimes.length; i++) {
               const [start, end] = breakTimes[i];
+              
               // 最後の要素で休憩終了がない場合（休憩中）
               if (i === breakTimes.length - 1 && !end) {
                 const [startHour, startMinute] = start.split(':').map(Number);
@@ -220,13 +221,12 @@
               }
             }
             
-            // 実労働時間の計算ではデフォルト休憩を加えない
-            // 実労働時間を計算（分）
+            // 実労働時間を計算（分）- 実際の休憩時間を使用
             const workMinutes = endTotalMinutes - shukkinTotalMinutes - breakTotalMinutes;
             
             console.log('デバッグ: 出勤時間:', shukkinTime);
             console.log('デバッグ: 終了時間:', endTime || currentTime);
-            console.log('デバッグ: 休憩時間合計:', breakTotalMinutes, '分');
+            console.log('デバッグ: 実際の休憩時間合計:', breakTotalMinutes, '分');
             console.log('デバッグ: 実労働時間:', workMinutes, '分');
             
             return {
@@ -777,10 +777,15 @@
             const minutes = workMinutes % 60;
 
             // 退勤予定時刻の計算
-            // 退勤予定時刻の計算では8時間以上の勤務で休憩時間が1時間未満の場合、休憩時間を1時間にする
+            const [shukkinHour, shukkinMinute] = shukkinTime.split(':').map(Number);
+            const shukkinTotalMinutes = shukkinHour * 60 + shukkinMinute;
+            
+            // 退勤予定時刻計算用の休憩時間を計算
             let breakTotalMinutesForScheduled = 0;
             for (let i = 0; i < breakTimes.length; i++) {
               const [start, end] = breakTimes[i];
+              
+              // 最後の要素で休憩終了がない場合（休憩中）
               if (i === breakTimes.length - 1 && !end) {
                 const [startHour, startMinute] = start.split(':').map(Number);
                 const startTotalMinutes = startHour * 60 + startMinute;
@@ -795,9 +800,12 @@
                 breakTotalMinutesForScheduled += endTotalMinutes - startTotalMinutes;
               }
             }
+
+            // 8時間以上の勤務で休憩時間が1時間未満の場合、退勤予定時刻計算用に休憩時間を1時間に設定
             if (scheduledWorkHours >= 8 && breakTotalMinutesForScheduled < 60) {
               breakTotalMinutesForScheduled = 60;
             }
+            
             const scheduledEndTotalMinutes = shukkinTotalMinutes + (scheduledWorkHours * 60) + breakTotalMinutesForScheduled;
             const scheduledEndHour = Math.floor(scheduledEndTotalMinutes / 60) % 24;
             const scheduledEndMinute = scheduledEndTotalMinutes % 60;
