@@ -231,7 +231,8 @@
             
             return {
               workMinutes,
-              currentTime: endTime || currentTime
+              currentTime: endTime || currentTime,
+              breakTotalMinutes
             };
           }
 
@@ -606,7 +607,7 @@
             
             progress.addEventListener('mouseenter', (event) => {
               console.log('バーグラフにマウスエンター');
-              const { workMinutes, currentTime } = calculateWorkTime(shukkinTime, breakTimes);
+              const { workMinutes, currentTime, breakTotalMinutes } = calculateWorkTime(shukkinTime, breakTimes);
               const maxMinutes = scheduledWorkHours * 60;
               const remainingMinutes = Math.max(0, maxMinutes - workMinutes);
               showTooltip(event, remainingMinutes);
@@ -617,7 +618,7 @@
               hideTooltip();
             });
             progress.addEventListener('mousemove', (event) => {
-              const { workMinutes, currentTime } = calculateWorkTime(shukkinTime, breakTimes);
+              const { workMinutes, currentTime, breakTotalMinutes } = calculateWorkTime(shukkinTime, breakTimes);
               const maxMinutes = scheduledWorkHours * 60;
               const remainingMinutes = Math.max(0, maxMinutes - workMinutes);
               showTooltip(event, remainingMinutes);
@@ -637,7 +638,7 @@
             
             pieChart.addEventListener('mouseenter', (event) => {
               console.log('円グラフにマウスエンター');
-              const { workMinutes, currentTime } = calculateWorkTime(shukkinTime, breakTimes);
+              const { workMinutes, currentTime, breakTotalMinutes } = calculateWorkTime(shukkinTime, breakTimes);
               const maxMinutes = scheduledWorkHours * 60;
               const remainingMinutes = Math.max(0, maxMinutes - workMinutes);
               showTooltip(event, remainingMinutes);
@@ -648,7 +649,7 @@
               hideTooltip();
             });
             pieChart.addEventListener('mousemove', (event) => {
-              const { workMinutes, currentTime } = calculateWorkTime(shukkinTime, breakTimes);
+              const { workMinutes, currentTime, breakTotalMinutes } = calculateWorkTime(shukkinTime, breakTimes);
               const maxMinutes = scheduledWorkHours * 60;
               const remainingMinutes = Math.max(0, maxMinutes - workMinutes);
               showTooltip(event, remainingMinutes);
@@ -760,7 +761,7 @@
               console.log('出勤時間が取得できていません。');
               return;
             }
-            const { workMinutes, currentTime } = calculateWorkTime(shukkinTime, breakTimes);
+            const { workMinutes, currentTime, breakTotalMinutes } = calculateWorkTime(shukkinTime, breakTimes);
             const maxMinutes = scheduledWorkHours * 60;
             const progressPercentage = Math.min(workMinutes, maxMinutes) / maxMinutes;
             if (progress) progress.style.width = `${progressPercentage * 100}%`;
@@ -811,7 +812,7 @@
             const scheduledEndMinute = scheduledEndTotalMinutes % 60;
             const scheduledEndTime = `${scheduledEndHour.toString().padStart(2, '0')}:${scheduledEndMinute.toString().padStart(2, '0')}`;
 
-            const infoText = `現在時刻: ${currentTime} | 実労働時間: ${hours}時間${minutes}分 | 予定: ${scheduledWorkHours}時間 | 退勤予定: ${scheduledEndTime}`;
+            const infoText = `現在時刻: ${currentTime} | 実労働時間: ${hours}時間${minutes}分 | 休憩時間: ${Math.floor(breakTotalMinutes / 60)}時間${breakTotalMinutes % 60}分 | 予定: ${scheduledWorkHours}時間 | 退勤予定: ${scheduledEndTime}`;
             if (info) info.textContent = infoText;
             if (pieChartInfo) pieChartInfo.textContent = `${hours}時間${minutes}分`;
           }
