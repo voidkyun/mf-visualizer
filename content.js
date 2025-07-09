@@ -169,8 +169,17 @@
               console.log('デバッグモード: 経過時間', elapsedMinutes, '分');
               console.log('デバッグモード: 現在時刻を', currentTime, 'に設定');
             } else {
-              const now = new Date();
-              currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+              // ページから現在時刻を取得
+              const timeSpan = document.querySelector('span.tw-mr-4.tw-text-\\[64px\\].tw-leading-none');
+              if (timeSpan) {
+                currentTime = timeSpan.textContent.trim();
+                console.log('ページから取得した現在時刻:', currentTime);
+              } else {
+                // フォールバック: システム時刻を使用
+                const now = new Date();
+                currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                console.log('ページから時刻を取得できませんでした。システム時刻を使用:', currentTime);
+              }
             }
             
             // 出勤時間を分に変換
