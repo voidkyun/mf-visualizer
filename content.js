@@ -24,7 +24,95 @@
   const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
   const weekday = weekdays[today.getDay()];
   const todayString = `${year}年${month}月${date}日(${weekday})`;
+  const dataV = '4fdfa777';
   console.log('検索対象の日付:', todayString);
+
+  // history-listから時間データを抽出する共通関数
+  function extractTimeDataFromHistoryList(historyList, isReExtract = false) {
+    const divElements = Array.from(historyList.querySelectorAll(`li div[data-v-${dataV}]`));
+    if (!isReExtract) {
+      console.log('取得したdiv要素のリスト:', divElements);
+    }
+
+    // 出勤時間を取得
+    const shukkinDiv = divElements.find(div => 
+      div.classList.contains('tw-mr-8') && 
+      div.classList.contains('tw-w-[72px]') && 
+      div.classList.contains('mobile:tw-w-auto') && 
+      div.textContent.trim() === '出勤'
+    );
+
+    if (shukkinDiv) {
+      const timeDiv = shukkinDiv.nextElementSibling;
+      if (timeDiv && timeDiv.hasAttribute(`data-v-${dataV}`)) {
+        shukkinTime = timeDiv.textContent.trim();
+        console.log(isReExtract ? '出勤時間を再取得:' : '出勤時間:', shukkinTime);
+      } else {
+        console.log('出勤時間の要素が見つかりません。');
+      }
+    } else {
+      console.log('出勤の要素が見つかりません。');
+    }
+
+    // 休憩時間のセットを格納する配列
+    breakTimes = [];
+    let currentBreakStart = null;
+
+    // 要素を下から上に処理
+    for (let i = divElements.length - 1; i >= 0; i--) {
+      const div = divElements[i];
+      const text = div.textContent.trim();
+      
+      if (text === '休憩開始') {
+        const timeDiv = div.nextElementSibling;
+        if (timeDiv && timeDiv.hasAttribute(`data-v-${dataV}`)) {
+          currentBreakStart = timeDiv.textContent.trim();
+          let foundEnd = false;
+          for (let j = i - 1; j >= 0; j--) {
+            const nextDiv = divElements[j];
+            const nextText = nextDiv.textContent.trim();
+            if (nextText === '休憩終了') {
+              const endTimeDiv = nextDiv.nextElementSibling;
+              if (endTimeDiv && endTimeDiv.hasAttribute(`data-v-${dataV}`)) {
+                const breakEnd = endTimeDiv.textContent.trim();
+                breakTimes.push([currentBreakStart, breakEnd]);
+                foundEnd = true;
+                break;
+              }
+            }
+          }
+          if (!foundEnd) {
+            breakTimes.push([currentBreakStart, null]);
+          }
+          currentBreakStart = null;
+        }
+      }
+    }
+
+    console.log(isReExtract ? '休憩時間を再取得:' : '休憩時間のセット:', breakTimes);
+
+    // 退勤時間を取得
+    const taikinDiv = divElements.find(div => 
+      div.classList.contains('tw-mr-8') && 
+      div.classList.contains('tw-w-[72px]') && 
+      div.classList.contains('mobile:tw-w-auto') && 
+      div.textContent.trim() === '退勤'
+    );
+
+    if (taikinDiv) {
+      const timeDiv = taikinDiv.nextElementSibling;
+      if (timeDiv && timeDiv.hasAttribute(`data-v-${dataV}`)) {
+        const endTime = timeDiv.textContent.trim();
+        taikinTime = endTime; // グローバル変数に保存
+        console.log(isReExtract ? '退勤時間を再取得:' : '退勤時間:', endTime);
+      } else {
+        console.log('退勤時間の要素が見つかりません。');
+      }
+    } else {
+      taikinTime = null;
+      console.log('退勤の要素が見つかりません。');
+    }
+  }
 
   // 要素の監視と処理を行う関数
   function processElements() {
@@ -33,7 +121,7 @@
       return;
     }
 
-    const h3Elements = document.querySelectorAll('h3[data-v-16531082]');
+    const h3Elements = document.querySelectorAll(`h3[data-v-${dataV}]`);
     console.log('h3要素の総数:', h3Elements.length);
 
     if (h3Elements.length === 0) {
@@ -58,92 +146,9 @@
         const historyList = historyListGroup.querySelector('.history-list');
         if (historyList) {
           console.log('今日のhistory-list:', historyList);
-          const divElements = Array.from(historyList.querySelectorAll('li div[data-v-16531082]'));
-          console.log('取得したdiv要素のリスト:', divElements);
-
-          // 出勤時間を取得
-          const shukkinDiv = divElements.find(div => 
-            div.classList.contains('tw-mr-8') && 
-            div.classList.contains('tw-w-[72px]') && 
-            div.classList.contains('mobile:tw-w-auto') && 
-            div.textContent.trim() === '出勤'
-          );
-
-          if (shukkinDiv) {
-            // 出勤時間の要素を取得（出勤の要素の次のdiv要素）
-            const timeDiv = shukkinDiv.nextElementSibling;
-            if (timeDiv && timeDiv.hasAttribute('data-v-16531082')) {
-              shukkinTime = timeDiv.textContent.trim();
-              console.log('出勤時間:', shukkinTime);
-            } else {
-              console.log('出勤時間の要素が見つかりません。');
-            }
-          } else {
-            console.log('出勤の要素が見つかりません。');
-          }
-
-          // 休憩時間のセットを格納する配列
-          breakTimes = [];
-          let currentBreakStart = null;
-
-          // 要素を下から上に処理
-          for (let i = divElements.length - 1; i >= 0; i--) {
-            const div = divElements[i];
-            const text = div.textContent.trim();
-            
-            if (text === '休憩開始') {
-              // 休憩開始時間を取得
-              const timeDiv = div.nextElementSibling;
-              if (timeDiv && timeDiv.hasAttribute('data-v-16531082')) {
-                currentBreakStart = timeDiv.textContent.trim();
-                // 休憩終了を探す
-                let foundEnd = false;
-                for (let j = i - 1; j >= 0; j--) {
-                  const nextDiv = divElements[j];
-                  const nextText = nextDiv.textContent.trim();
-                  if (nextText === '休憩終了') {
-                    const endTimeDiv = nextDiv.nextElementSibling;
-                    if (endTimeDiv && endTimeDiv.hasAttribute('data-v-16531082')) {
-                      const breakEnd = endTimeDiv.textContent.trim();
-                      // 休憩開始と終了のセットを配列に追加
-                      breakTimes.push([currentBreakStart, breakEnd]);
-                      foundEnd = true;
-                      break;
-                    }
-                  }
-                }
-                // 休憩終了が見つからない場合（休憩中）
-                if (!foundEnd) {
-                  breakTimes.push([currentBreakStart, null]);
-                }
-                currentBreakStart = null;
-              }
-            }
-          }
-
-          console.log('休憩時間のセット:', breakTimes);
-
-          // 退勤時間を取得
-          const taikinDiv = divElements.find(div => 
-            div.classList.contains('tw-mr-8') && 
-            div.classList.contains('tw-w-[72px]') && 
-            div.classList.contains('mobile:tw-w-auto') && 
-            div.textContent.trim() === '退勤'
-          );
-
-          if (taikinDiv) {
-            // 退勤時間の要素を取得（退勤の要素の次のdiv要素）
-            const timeDiv = taikinDiv.nextElementSibling;
-            if (timeDiv && timeDiv.hasAttribute('data-v-16531082')) {
-              endTime = timeDiv.textContent.trim();
-              taikinTime = endTime; // グローバル変数に保存
-              console.log('退勤時間:', endTime);
-            } else {
-              console.log('退勤時間の要素が見つかりません。');
-            }
-          } else {
-            console.log('退勤の要素が見つかりません。');
-          }
+          
+          // 時間データを抽出
+          extractTimeDataFromHistoryList(historyList, false);
 
           // 実労働時間の計算
           function calculateWorkTime(shukkinTime, breakTimes) {
@@ -186,24 +191,8 @@
             const [shukkinHour, shukkinMinute] = shukkinTime.split(':').map(Number);
             const shukkinTotalMinutes = shukkinHour * 60 + shukkinMinute;
             
-            // 退勤時間を取得
-            const taikinDiv = divElements.find(div => 
-              div.classList.contains('tw-mr-8') && 
-              div.classList.contains('tw-w-[72px]') && 
-              div.classList.contains('mobile:tw-w-auto') && 
-              div.textContent.trim() === '退勤'
-            );
-
-            let endTime;
-            if (taikinDiv) {
-              // 退勤時間の要素を取得（退勤の要素の次のdiv要素）
-              const timeDiv = taikinDiv.nextElementSibling;
-              if (timeDiv && timeDiv.hasAttribute('data-v-16531082')) {
-                endTime = timeDiv.textContent.trim();
-                taikinTime = endTime; // グローバル変数に保存
-                console.log('退勤時間:', endTime);
-              }
-            }
+            // 退勤時間は既にグローバル変数taikinTimeに保存されているので、それを使用
+            const endTime = taikinTime;
 
             // 終了時間を分に変換（退勤時間がある場合は退勤時間、ない場合は現在時刻）
             const [endHour, endMinute] = (endTime || currentTime).split(':').map(Number);
@@ -869,78 +858,7 @@
           const historyListObserver = new MutationObserver((mutations) => {
             // 変更があった場合、データを再取得
             console.log('history-listの内容が変更されました。データを再取得します。');
-            const divElements = Array.from(historyList.querySelectorAll('li div[data-v-16531082]'));
-            
-            // 出勤時間を再取得
-            const shukkinDiv = divElements.find(div => 
-              div.classList.contains('tw-mr-8') && 
-              div.classList.contains('tw-w-[72px]') && 
-              div.classList.contains('mobile:tw-w-auto') && 
-              div.textContent.trim() === '出勤'
-            );
-
-            if (shukkinDiv) {
-              const timeDiv = shukkinDiv.nextElementSibling;
-              if (timeDiv && timeDiv.hasAttribute('data-v-16531082')) {
-                shukkinTime = timeDiv.textContent.trim();
-                console.log('出勤時間を再取得:', shukkinTime);
-              }
-            }
-
-            // 休憩時間を再取得
-            breakTimes = [];
-            let currentBreakStart = null;
-
-            // 要素を下から上に処理
-            for (let i = divElements.length - 1; i >= 0; i--) {
-              const div = divElements[i];
-              const text = div.textContent.trim();
-              
-              if (text === '休憩開始') {
-                const timeDiv = div.nextElementSibling;
-                if (timeDiv && timeDiv.hasAttribute('data-v-16531082')) {
-                  currentBreakStart = timeDiv.textContent.trim();
-                  let foundEnd = false;
-                  for (let j = i - 1; j >= 0; j--) {
-                    const nextDiv = divElements[j];
-                    const nextText = nextDiv.textContent.trim();
-                    if (nextText === '休憩終了') {
-                      const endTimeDiv = nextDiv.nextElementSibling;
-                      if (endTimeDiv && endTimeDiv.hasAttribute('data-v-16531082')) {
-                        const breakEnd = endTimeDiv.textContent.trim();
-                        breakTimes.push([currentBreakStart, breakEnd]);
-                        foundEnd = true;
-                        break;
-                      }
-                    }
-                  }
-                  if (!foundEnd) {
-                    breakTimes.push([currentBreakStart, null]);
-                  }
-                  currentBreakStart = null;
-                }
-              }
-            }
-            console.log('休憩時間を再取得:', breakTimes);
-            
-            // 退勤時間を再取得
-            const taikinDiv = divElements.find(div => 
-              div.classList.contains('tw-mr-8') && 
-              div.classList.contains('tw-w-[72px]') && 
-              div.classList.contains('mobile:tw-w-auto') && 
-              div.textContent.trim() === '退勤'
-            );
-
-            if (taikinDiv) {
-              const timeDiv = taikinDiv.nextElementSibling;
-              if (timeDiv && timeDiv.hasAttribute('data-v-16531082')) {
-                taikinTime = timeDiv.textContent.trim();
-                console.log('退勤時間を再取得:', taikinTime);
-              }
-            } else {
-              taikinTime = null;
-              console.log('退勤の要素が見つかりません。');
-            }
+            extractTimeDataFromHistoryList(historyList, true);
           });
 
           // history-listの監視を開始
