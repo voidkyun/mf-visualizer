@@ -800,9 +800,16 @@
               }
             }
 
-            // 8時間以上の勤務で休憩時間が1時間未満の場合、退勤予定時刻計算用に休憩時間を1時間に設定
-            if (scheduledWorkHours >= 8 && breakTotalMinutesForScheduled < 60) {
-              breakTotalMinutesForScheduled = 60;
+            // 労基法に基づき、6時間以上〜8時間未満は45分、8時間以上は60分を最低休憩として退勤予定時刻を計算
+            const originalBreakTotalMinutesForScheduled = breakTotalMinutesForScheduled;
+            let requiredBreakMinutes = 0;
+            if (scheduledWorkHours >= 8) {
+              requiredBreakMinutes = 60;
+            } else if (scheduledWorkHours >= 6) {
+              requiredBreakMinutes = 45;
+            }
+            if (breakTotalMinutesForScheduled < requiredBreakMinutes) {
+              breakTotalMinutesForScheduled = requiredBreakMinutes;
             }
             
             const scheduledEndTotalMinutes = shukkinTotalMinutes + (scheduledWorkHours * 60) + breakTotalMinutesForScheduled;
@@ -810,7 +817,14 @@
             const scheduledEndMinute = scheduledEndTotalMinutes % 60;
             const scheduledEndTime = `${scheduledEndHour.toString().padStart(2, '0')}:${scheduledEndMinute.toString().padStart(2, '0')}`;
 
-            const infoText = `現在時刻: ${currentTime} | 実労働時間: ${hours}時間${minutes}分 | 休憩時間: ${Math.floor(breakTotalMinutes / 60)}時間${breakTotalMinutes % 60}分 | 予定: ${scheduledWorkHours}時間 | 退勤予定: ${scheduledEndTime}`;
+            // みなし休憩時間の表示テキストを作成
+            // 実際の休憩合計が法定最低休憩を下回っており、退勤予定計算のために底上げした場合のみ表示する
+            const notionalBreakText =
+              originalBreakTotalMinutesForScheduled < requiredBreakMinutes && requiredBreakMinutes > 0
+                ? `${requiredBreakMinutes}分`
+                : 'なし';
+
+            const infoText = `現在時刻: ${currentTime} | 実労働時間: ${hours}時間${minutes}分 | 休憩時間: ${Math.floor(breakTotalMinutes / 60)}時間${breakTotalMinutes % 60}分 | 予定: ${scheduledWorkHours}時間 | 退勤予定: ${scheduledEndTime} | みなし休憩: ${notionalBreakText}`;
             if (info) info.textContent = infoText;
             if (pieChartInfo) pieChartInfo.textContent = `${hours}時間${minutes}分`;
           }
